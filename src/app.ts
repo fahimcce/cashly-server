@@ -22,7 +22,7 @@ app.use("/api", router);
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({
-    message: "Entry to GlarionX server",
+    message: "Entry to Cashly server",
   });
 });
 
