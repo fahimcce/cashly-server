@@ -10,7 +10,7 @@ export type TUser = {
   isDeleted: boolean;
   balance: number;
   pin?: string;
-  income?: number;
+  income: number;
   isApproved: boolean;
 };
 

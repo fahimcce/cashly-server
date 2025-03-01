@@ -1,0 +1,21 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.transactionRoutes = void 0;
+const express_1 = __importDefault(require("express"));
+const validRequest_1 = __importDefault(require("../../middlewares/validRequest"));
+const Transaction_controller_1 = require("./Transaction.controller");
+const Transaction_validation_1 = require("./Transaction.validation");
+const auth_1 = __importDefault(require("../../middlewares/auth"));
+const User_constant_1 = require("../User/User.constant");
+const router = express_1.default.Router();
+router.post("/send-money", (0, validRequest_1.default)(Transaction_validation_1.TransactionValidation.sendMoneySchema), (0, auth_1.default)(User_constant_1.USER_ROLE.USER), Transaction_controller_1.TransactionControllers.sendMoney);
+router.post("/cash-out", (0, validRequest_1.default)(Transaction_validation_1.TransactionValidation.cashOutSchema), (0, auth_1.default)(User_constant_1.USER_ROLE.USER), Transaction_controller_1.TransactionControllers.cashOut);
+router.get("/balance-inquiry", (0, auth_1.default)(User_constant_1.USER_ROLE.AGENT, User_constant_1.USER_ROLE.USER, User_constant_1.USER_ROLE.ADMIN), Transaction_controller_1.TransactionControllers.balanceInquiry);
+router.post("/cashin", (0, auth_1.default)(User_constant_1.USER_ROLE.AGENT), Transaction_controller_1.TransactionControllers.CashIn);
+router.get("/transactions", (0, auth_1.default)(User_constant_1.USER_ROLE.AGENT, User_constant_1.USER_ROLE.USER), Transaction_controller_1.TransactionControllers.getLast100Transactions);
+router.get("/admin/transactions/:userPhone", Transaction_controller_1.TransactionControllers.getTransactionsOfUser);
+router.get("/total-money", Transaction_controller_1.TransactionControllers.updateTotalMoney);
+exports.transactionRoutes = router;

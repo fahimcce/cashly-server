@@ -3,17 +3,6 @@ import sendResponse from "../../utils/sendResponse";
 import httpStatus from "http-status";
 import { UserService } from "./User.service";
 
-const getUserDetails = catchAsync(async (req, res) => {
-  const { phone } = req.params;
-  const result = await UserService.getUserDetails(phone);
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "User details fetched successfully.",
-    data: result,
-  });
-});
-
 const toggleUserStatus = catchAsync(async (req, res) => {
   const { phone } = req.params;
   const { status } = req.body; // true = block, false = unblock
@@ -26,6 +15,7 @@ const toggleUserStatus = catchAsync(async (req, res) => {
   });
 });
 
+//only admin
 const searchUserByPhone = catchAsync(async (req, res) => {
   const { phone } = req.params;
   const result = await UserService.searchUserByPhone(phone);
@@ -46,10 +36,19 @@ const getAllUsers = catchAsync(async (req, res) => {
     data: result,
   });
 });
+const getMe = catchAsync(async (req, res) => {
+  const result = await UserService.getMe(req);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User found.",
+    data: result.Data,
+  });
+});
 
 export const UserController = {
-  getUserDetails,
   toggleUserStatus,
   searchUserByPhone,
   getAllUsers,
+  getMe,
 };

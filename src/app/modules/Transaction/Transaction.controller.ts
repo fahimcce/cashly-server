@@ -4,12 +4,7 @@ import httpStatus from "http-status";
 import { TransactionServices } from "./Transaction.service";
 
 const sendMoney = catchAsync(async (req, res) => {
-  const { senderPhone, receiverPhone, amount } = req.body;
-  const result = await TransactionServices.sendMoney(
-    senderPhone,
-    receiverPhone,
-    amount
-  );
+  const result = await TransactionServices.sendMoney(req);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -19,13 +14,7 @@ const sendMoney = catchAsync(async (req, res) => {
 });
 
 const cashOut = catchAsync(async (req, res) => {
-  const { userPhone, amount, password, agentPhone } = req.body;
-  const result = await TransactionServices.cashOut(
-    userPhone,
-    agentPhone,
-    amount,
-    password
-  );
+  const result = await TransactionServices.cashOut(req);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -35,8 +24,7 @@ const cashOut = catchAsync(async (req, res) => {
 });
 
 const balanceInquiry = catchAsync(async (req, res) => {
-  const { userPhone } = req.body;
-  const result = await TransactionServices.balanceInquiry(userPhone);
+  const result = await TransactionServices.balanceInquiry(req);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -46,13 +34,7 @@ const balanceInquiry = catchAsync(async (req, res) => {
 });
 
 const CashIn = catchAsync(async (req, res) => {
-  const { userPhone, agentPhone, amount, password } = req.body;
-  const result = await TransactionServices.cashIn(
-    userPhone,
-    agentPhone,
-    amount,
-    password
-  );
+  const result = await TransactionServices.cashIn(req);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -62,8 +44,7 @@ const CashIn = catchAsync(async (req, res) => {
 });
 
 const getLast100Transactions = catchAsync(async (req, res) => {
-  const { phone } = req.params;
-  const result = await TransactionServices.getLast100Transactions(phone);
+  const result = await TransactionServices.getLast100Transactions(req);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -82,6 +63,15 @@ const getTransactionsOfUser = catchAsync(async (req, res) => {
     data: result,
   });
 });
+const updateTotalMoney = catchAsync(async (req, res) => {
+  const result = await TransactionServices.updateTotalMoney();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Total money fetched successfully.",
+    data: result,
+  });
+});
 
 export const TransactionControllers = {
   sendMoney,
@@ -90,4 +80,5 @@ export const TransactionControllers = {
   CashIn,
   getLast100Transactions,
   getTransactionsOfUser,
+  updateTotalMoney,
 };

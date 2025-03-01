@@ -1,11 +1,27 @@
 import express from "express";
 import { UserController } from "./User.controller";
+import { USER_ROLE } from "./User.constant";
+import auth from "../../middlewares/auth";
 
 const router = express.Router();
 
-router.get("/", UserController.getAllUsers);
-router.get("/:phone", UserController.getUserDetails);
-router.post("/status/:phone", UserController.toggleUserStatus);
-router.get("/search/:phone", UserController.searchUserByPhone);
+router.get("/", auth(USER_ROLE.ADMIN), UserController.getAllUsers);
+
+router.patch(
+  "/status/:phone",
+  auth(USER_ROLE.ADMIN),
+  UserController.toggleUserStatus
+);
+router.get(
+  "/search/:phone",
+  auth(USER_ROLE.ADMIN),
+  UserController.searchUserByPhone
+);
+
+router.get(
+  "/me",
+  auth(USER_ROLE.ADMIN, USER_ROLE.AGENT, USER_ROLE.USER),
+  UserController.getMe
+);
 
 export const UserRoutes = router;

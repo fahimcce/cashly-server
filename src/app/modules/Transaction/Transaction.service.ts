@@ -4,32 +4,35 @@ import httpStatus from "http-status";
 import { User } from "../Auth/Auth.model";
 import * as bcrypt from "bcrypt";
 import { SystemBalance } from "./SystemBalance.model";
+import { Request } from "express";
 
-// ========================== SEND MONEY ==========================
-const sendMoney = async (
-  senderPhone: string,
-  receiverPhone: string,
-  amount: number
-) => {
-  if (!amount || isNaN(amount)) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid amount.");
+const sendMoney = async (req: Request) => {
+  const user = req.user;
+  const { receiverPhone, amount, password } = req.body;
+  if (!user) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "User not found.");
   }
 
-  const sender = await User.findOne({ phone: senderPhone });
+  const sender = await User.findOne({
+    $or: [{ email: user.identifier }, { phone: user.identifier }],
+  });
+  if (!sender) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Sender not found.");
+  }
+  const senderPhone = sender?.phone;
+
+  //password test
+  const isPasswordValid = await bcrypt.compare(password, sender.password);
+  if (!isPasswordValid) {
+    throw new ApiError(
+      httpStatus.UNAUTHORIZED,
+      "Password incorrect! Try again."
+    );
+  }
+
   const receiver = await User.findOne({ phone: receiverPhone });
-
-  if (!sender || typeof sender.balance !== "number") {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Sender not found or balance is invalid."
-    );
-  }
-
-  if (!receiver || typeof receiver.balance !== "number") {
-    throw new ApiError(
-      httpStatus.NOT_FOUND,
-      "Receiver not found or balance is invalid."
-    );
+  if (!receiver) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Receiver not found.");
   }
 
   if (sender.balance < amount) {
@@ -82,22 +85,23 @@ const sendMoney = async (
   return transaction;
 };
 
-// ========================== CASH OUT ==========================
-const cashOut = async (
-  userPhone: string,
-  agentPhone: string,
-  amount: number,
-  password: string
-) => {
-  const user = await User.findOne({ phone: userPhone });
+const cashOut = async (req: Request) => {
+  const user = req.user;
+  const { agentPhone, amount, password } = req.body;
   if (!user) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Invalid pin or user not found."
-    );
+    throw new ApiError(httpStatus.BAD_REQUEST, "User not found.");
   }
 
-  const isPasswordValid = await bcrypt.compare(password, user.password);
+  const sender = await User.findOne({
+    $or: [{ email: user.identifier }, { phone: user.identifier }],
+  });
+  if (!sender) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Sender not found.");
+  }
+  const senderPhone = sender?.phone;
+
+  //password test
+  const isPasswordValid = await bcrypt.compare(password, sender.password);
   if (!isPasswordValid) {
     throw new ApiError(
       httpStatus.UNAUTHORIZED,
@@ -116,18 +120,18 @@ const cashOut = async (
   const totalFee = agentIncome + adminIncome;
   const totalAmount = amount + totalFee;
 
-  if (user.balance < totalAmount) {
+  if (sender.balance < totalAmount) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
       "Insufficient balance for cash-out."
     );
   }
 
-  user.balance -= totalAmount;
-  await user.save();
+  sender.balance -= totalAmount;
+  await sender.save();
 
   const transaction = await Transaction.create({
-    senderPhone: userPhone,
+    senderPhone: senderPhone,
     receiverPhone: agentPhone,
     amount,
     transactionType: "cash-out",
@@ -152,18 +156,26 @@ const cashOut = async (
   systemBalance.totalMoney -= amount;
   systemBalance.totalMoney += adminIncome;
   await systemBalance.save();
+  await updateTotalMoney();
 
   return transaction;
 };
 
 // ========================== BALANCE INQUIRY ==========================
-const balanceInquiry = async (userPhone: string) => {
-  const user = await User.findOne({ phone: userPhone });
+const balanceInquiry = async (req: Request) => {
+  const user = req.user;
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found.");
   }
+  const userData = await User.findOne({
+    $or: [{ email: user.identifier }, { phone: user.identifier }],
+  });
+  if (!userData) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "User not found.");
+  }
+  const balance = userData.balance;
 
-  return { balance: user.balance };
+  return { balance };
 };
 
 // ========================== UPDATE TOTAL MONEY ==========================
@@ -186,21 +198,26 @@ const updateTotalMoney = async () => {
   }
 
   await systemBalance.save();
+  return systemBalance;
 };
 
 // ========================== CASH IN ==========================
-const cashIn = async (
-  userPhone: string,
-  agentPhone: string,
-  amount: number,
-  password: string
-) => {
-  const agent = await User.findOne({ phone: agentPhone });
-  if (!agent) {
-    throw new ApiError(httpStatus.NOT_FOUND, "Agent not found.");
+const cashIn = async (req: Request) => {
+  const user = req.user;
+  const { userPhone, amount, password } = req.body;
+  if (!user) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "User not found.");
   }
 
-  // Verify agent's password
+  const agent = await User.findOne({
+    $or: [{ email: user.identifier }, { phone: user.identifier }],
+  });
+  if (!agent) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Sender not found.");
+  }
+  const agentPhone = agent?.phone;
+
+  //password test
   const isPasswordValid = await bcrypt.compare(password, agent.password);
   if (!isPasswordValid) {
     throw new ApiError(
@@ -217,16 +234,16 @@ const cashIn = async (
     );
   }
 
-  const user = await User.findOne({ phone: userPhone, isDeleted: false });
-  if (!user) {
+  const receiver = await User.findOne({ phone: userPhone, isDeleted: false });
+  if (!receiver) {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found.");
   }
 
   // Transfer money from agent to user
-  user.balance += amount;
+  receiver.balance += amount;
   agent.balance -= amount;
 
-  await user.save();
+  await receiver.save();
   await agent.save();
 
   // Create transaction record for cash-in
@@ -248,9 +265,6 @@ const cashIn = async (
   }
 
   await updateTotalMoney();
-
-  sendNotification(userPhone, amount);
-
   return {
     message: "Cash-in transaction completed successfully.",
     transaction,
@@ -258,16 +272,22 @@ const cashIn = async (
   };
 };
 
-// ========================== NOTIFICATION ==========================
-const sendNotification = (userPhone: string, amount: number) => {
-  console.log(
-    `Notification sent to ${userPhone}: Cash-in of ${amount} successful.`
-  );
-};
-
 // Get Last 100 Transactions of a User/Agent
-const getLast100Transactions = async (phone: string) => {
-  const transactions = await Transaction.find({ userPhone: phone })
+const getLast100Transactions = async (req: Request) => {
+  const user = req.user;
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found.");
+  }
+  const userData = await User.findOne({
+    $or: [{ email: user.identifier }, { phone: user.identifier }],
+  });
+  if (!userData) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "User not found.");
+  }
+
+  const transactions = await Transaction.find({
+    $or: [{ senderPhone: userData.phone }, { receiverPhone: userData.phone }],
+  })
     .sort({ createdAt: -1 })
     .limit(100);
 

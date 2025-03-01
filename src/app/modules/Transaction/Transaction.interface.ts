@@ -15,5 +15,5 @@ export type TTransaction = {
 
 export type TBalanceInquiry = {
   userPhone: string;
-  role: TUserRole; // admin, user, agent
+  role: TUserRole;
 };
